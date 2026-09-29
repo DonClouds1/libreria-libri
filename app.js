@@ -17,7 +17,7 @@
         restrizioni applicazione → referrer HTTP → il tuo dominio GitHub Pages
      5. Incolla la chiave qui sotto tra le virgolette. */
   const CONFIG = {
-    GOOGLE_BOOKS_API_KEY: ""
+    GOOGLE_BOOKS_API_KEY: "AIzaSyA901fib4PTU6twEA5zD-tOeP9aY8a8p-0"
   };
 
   const STORAGE_KEY = "libreria_libri_v1";
