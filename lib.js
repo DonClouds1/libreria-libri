@@ -96,25 +96,57 @@ const PAROLE_CHIAVE_GENERE = [
   { parole: ["business", "economic"], nome: "Economia e Business" }
 ];
 
+/* Segmenti troppo generici per essere usati come genere quando ne esiste uno
+   più specifico altrove (es. in "Fiction / Thrillers / General" né "Fiction"
+   né "General" sono informativi: quello vero è "Thrillers"). */
+const SEGMENTI_GENERICI = ["fiction", "general", "nonfiction", "non-fiction", "miscellaneous"];
+
 function primaCategoria(categorie) {
   if (!categorie || categorie.length === 0) return null;
   return categorie[0];
 }
 
 function generePerVisualizzazione(categorie) {
-  const cat = primaCategoria(categorie);
-  if (!cat) return "Senza genere";
-  const primoSegmento = cat.split("/")[0].trim();
-  const chiave = primoSegmento.toLowerCase();
+  if (!categorie || categorie.length === 0) return "Senza genere";
 
-  if (MAPPA_GENERI[chiave]) return MAPPA_GENERI[chiave];
+  /* Google Books restituisce spesso una singola stringa in stile BISAC, es.
+     "Fiction / Thrillers / General": il PRIMO segmento è quasi sempre la
+     macro-categoria generica ("Fiction"), mentre il genere vero e proprio
+     sta nel secondo (o terzo). Vanno quindi raccolti TUTTI i segmenti di
+     TUTTE le categorie disponibili, non solo il primo del primo elemento. */
+  const segmenti = [];
+  categorie.forEach((cat) => {
+    String(cat).split("/").forEach((seg) => {
+      const pulito = seg.trim();
+      if (pulito) segmenti.push(pulito);
+    });
+  });
+  if (segmenti.length === 0) return "Senza genere";
 
-  for (const voce of PAROLE_CHIAVE_GENERE) {
-    if (voce.parole.some((parola) => chiave.includes(parola))) return voce.nome;
+  // 1) match esatto e SPECIFICO (scarta i segmenti generici tipo "Fiction")
+  for (const seg of segmenti) {
+    const chiave = seg.toLowerCase();
+    if (!SEGMENTI_GENERICI.includes(chiave) && MAPPA_GENERI[chiave]) return MAPPA_GENERI[chiave];
   }
 
-  // Non riconosciuto: capitalizza comunque la prima lettera per coerenza visiva
-  return primoSegmento.charAt(0).toUpperCase() + primoSegmento.slice(1);
+  // 2) parola chiave nota, scartando ancora i segmenti generici
+  for (const seg of segmenti) {
+    const chiave = seg.toLowerCase();
+    if (SEGMENTI_GENERICI.includes(chiave)) continue;
+    for (const voce of PAROLE_CHIAVE_GENERE) {
+      if (voce.parole.some((parola) => chiave.includes(parola))) return voce.nome;
+    }
+  }
+
+  // 3) match esatto anche se generico (es. solo "Fiction" disponibile -> Narrativa)
+  for (const seg of segmenti) {
+    const chiave = seg.toLowerCase();
+    if (MAPPA_GENERI[chiave]) return MAPPA_GENERI[chiave];
+  }
+
+  // 4) fallback finale: capitalizza il primo segmento non generico, o il primo in assoluto
+  const primoUtile = segmenti.find((s) => !SEGMENTI_GENERICI.includes(s.toLowerCase())) || segmenti[0];
+  return primoUtile.charAt(0).toUpperCase() + primoUtile.slice(1);
 }
 
 /* ---------- ISBN ---------- */
