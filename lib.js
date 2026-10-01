@@ -96,6 +96,65 @@ const PAROLE_CHIAVE_GENERE = [
   { parole: ["business", "economic"], nome: "Economia e Business" }
 ];
 
+/* Elenco completo dei generi selezionabili manualmente dall'utente quando
+   salva un libro (ordine alfabetico italiano). Comprende tutti i generi
+   riconosciuti automaticamente da MAPPA_GENERI/PAROLE_CHIAVE_GENERE più
+   "Psicologico", aggiunto su richiesta esplicita dell'utente. */
+const GENERI_DISPONIBILI = [
+  "Antologie",
+  "Arte",
+  "Auto-aiuto",
+  "Avventura",
+  "Biografia",
+  "Consultazione",
+  "Corpo, Mente e Spirito",
+  "Critica Letteraria",
+  "Cucina",
+  "Diritto",
+  "Economia e Business",
+  "Educazione",
+  "Famiglia e Relazioni",
+  "Fantascienza",
+  "Fantasy",
+  "Filosofia",
+  "Fumetti",
+  "Giallo",
+  "Guerra",
+  "Horror",
+  "Informatica",
+  "Libri illustrati",
+  "Linguistica",
+  "Materiale di studio",
+  "Medicina",
+  "Musica",
+  "Narrativa",
+  "Narrativa per ragazzi",
+  "Narrativa storica",
+  "Narrativa Young Adult",
+  "Natura",
+  "Poesia",
+  "Psicologia",
+  "Psicologico",
+  "Racconti",
+  "Religione",
+  "Romance",
+  "Saggistica",
+  "Saggistica per ragazzi",
+  "Saggistica Young Adult",
+  "Salute e Benessere",
+  "Scienza",
+  "Scienze Politiche",
+  "Scienze Sociali",
+  "Sport",
+  "Storia",
+  "Teatro",
+  "Tecnologia e Ingegneria",
+  "Thriller",
+  "True Crime",
+  "Viaggi",
+  "Senza genere"
+];
+
 /* Segmenti troppo generici per essere usati come genere quando ne esiste uno
    più specifico altrove (es. in "Fiction / Thrillers / General" né "Fiction"
    né "General" sono informativi: quello vero è "Thrillers"). */
@@ -358,16 +417,19 @@ function ordinaLibri(libri, criterio) {
   }
 
   if (criterio === "genere") {
+    // Usa il genere scelto manualmente dall'utente al momento del salvataggio
+    // (libro.genere). I libri salvati prima dell'introduzione di questo campo
+    // (o comunque senza un genere assegnato) finiscono in "Senza genere".
     arr.sort((a, b) => {
-      const ga = generePerVisualizzazione(a.categories);
-      const gb = generePerVisualizzazione(b.categories);
+      const ga = a.genere || "Senza genere";
+      const gb = b.genere || "Senza genere";
       if (ga === gb) return a.title.localeCompare(b.title, "it", { sensitivity: "base" });
       return ga.localeCompare(gb, "it", { sensitivity: "base" });
     });
     const righe = [];
     let genereCorrente = null;
     for (const libro of arr) {
-      const g = generePerVisualizzazione(libro.categories);
+      const g = libro.genere || "Senza genere";
       if (g !== genereCorrente) {
         righe.push({ tipo: "header", testo: g });
         genereCorrente = g;
@@ -395,6 +457,7 @@ function idLibro(libro) {
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     MAPPA_GENERI,
+    GENERI_DISPONIBILI,
     generePerVisualizzazione,
     puliziaIsbn,
     isbnValido,

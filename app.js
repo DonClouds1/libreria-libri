@@ -17,7 +17,7 @@
         restrizioni applicazione → referrer HTTP → il tuo dominio GitHub Pages
      5. Incolla la chiave qui sotto tra le virgolette. */
   const CONFIG = {
-    GOOGLE_BOOKS_API_KEY: "AIzaSyA901fib4PTU6twEA5zD-tOeP9aY8a8p-0"
+    GOOGLE_BOOKS_API_KEY: ""
   };
 
   const STORAGE_KEY = "libreria_libri_v1";
@@ -386,7 +386,7 @@
   // --- Dettaglio da un risultato di ricerca (libro non ancora salvato) ---
   function apriModaleDettaglioRicerca(indice) {
     const libro = ultimoRisultatoRicerca[indice];
-    const contenuto = costruisciCorpoModale(libro, { modalitaRicerca: true });
+    const { elemento: contenuto, selettoreGenere } = costruisciCorpoModale(libro, { modalitaRicerca: true });
 
     const azioni = document.createElement("div");
     azioni.className = "modal-actions";
@@ -405,7 +405,7 @@
       btnSalva.className = "btn btn-primary";
       btnSalva.textContent = "Salva per dopo";
       btnSalva.addEventListener("click", () => {
-        salvaNuovoLibro(libro, "daLeggere");
+        salvaNuovoLibro(libro, "daLeggere", selettoreGenere.value);
         mostraToast("Aggiunto a \"Da leggere\".");
         chiudiModale();
       });
@@ -415,7 +415,7 @@
       btnLetto.className = "btn btn-secondary";
       btnLetto.textContent = "Segna subito come letto";
       btnLetto.addEventListener("click", () => {
-        const nuovo = salvaNuovoLibro(libro, "letto");
+        const nuovo = salvaNuovoLibro(libro, "letto", selettoreGenere.value);
         chiudiModale();
         apriModaleValutazione(nuovo.id);
       });
@@ -430,7 +430,15 @@
   function apriModaleDettaglioSalvato(id) {
     const libro = libri.find((l) => l.id === id);
     if (!libro) return;
-    const contenuto = costruisciCorpoModale(libro, { modalitaRicerca: false });
+    const { elemento: contenuto, selettoreGenere } = costruisciCorpoModale(libro, { modalitaRicerca: false });
+
+    selettoreGenere.addEventListener("change", () => {
+      libro.genere = selettoreGenere.value;
+      salvaLibri();
+      mostraToast("Genere aggiornato.");
+      renderListaDaLeggere();
+      renderListaLetti();
+    });
 
     const azioni = document.createElement("div");
     azioni.className = "modal-actions";
@@ -600,7 +608,6 @@
     const metaList = document.createElement("div");
     metaList.className = "modal-meta-list";
     const righeMeta = [];
-    righeMeta.push("Genere: " + generePerVisualizzazione(libro.categories));
     righeMeta.push("Uscita: " + formattaDataUscita(libro.publishedDate));
     if (libro.pageCount) righeMeta.push("Pagine: " + libro.pageCount);
     if (libro.isbn) righeMeta.push("ISBN: " + libro.isbn);
@@ -627,11 +634,36 @@
     sezioneDescrizione.appendChild(p);
     contenuto.appendChild(sezioneDescrizione);
 
-    if (!opzioni.modalitaRicerca && libro.status === "letto" && libro.review) {
-      // La recensione salvata viene comunque mostrata/editata più sotto dal chiamante
+    // Genere: scelta SEMPRE manuale. Pre-compilato con un suggerimento
+    // (quello del libro se già salvato, altrimenti dedotto dalle categorie),
+    // ma l'utente può cambiarlo liberamente prima/dopo di salvare.
+    const sezioneGenere = document.createElement("div");
+    sezioneGenere.className = "modal-section";
+    const h3g = document.createElement("h3");
+    h3g.textContent = "Genere";
+    sezioneGenere.appendChild(h3g);
+
+    let valoreIniziale = "Senza genere";
+    if (libro.genere && GENERI_DISPONIBILI.includes(libro.genere)) {
+      valoreIniziale = libro.genere;
+    } else {
+      const suggerito = generePerVisualizzazione(libro.categories);
+      if (GENERI_DISPONIBILI.includes(suggerito)) valoreIniziale = suggerito;
     }
 
-    return contenuto;
+    const selettoreGenere = document.createElement("select");
+    selettoreGenere.className = "genre-select";
+    GENERI_DISPONIBILI.forEach((g) => {
+      const opt = document.createElement("option");
+      opt.value = g;
+      opt.textContent = g;
+      if (g === valoreIniziale) opt.selected = true;
+      selettoreGenere.appendChild(opt);
+    });
+    sezioneGenere.appendChild(selettoreGenere);
+    contenuto.appendChild(sezioneGenere);
+
+    return { elemento: contenuto, selettoreGenere };
   }
 
   function ripulisciDescrizione(html) {
@@ -670,13 +702,14 @@
     return libri.find((l) => idLibro(l) === chiave);
   }
 
-  function salvaNuovoLibro(libroRicerca, status) {
+  function salvaNuovoLibro(libroRicerca, status, genere) {
     const esistente = trovaLibroEsistente(libroRicerca);
     if (esistente) return esistente;
 
     const nuovo = Object.assign({}, libroRicerca, {
       id: idLibro(libroRicerca) + ":" + Date.now(),
       status: status,
+      genere: (genere && GENERI_DISPONIBILI.includes(genere)) ? genere : "Senza genere",
       rating: null,
       review: "",
       dataAggiunta: new Date().toISOString(),
